@@ -1,0 +1,37 @@
+# Optional. For a source you have personally verified is a public, official
+# API (documented, no login, robots.txt-clean) but that pantau-loker's
+# automatic detection can't discover on its own -- for example, a page whose
+# frontend never calls its own platform's public API directly.
+#
+# Entries here are merged into sources.validated.yaml as-is, with no
+# validation. You are responsible for confirming each one is safe and
+# public before adding it. This file is never modified automatically.
+
+sources:
+  - url: https://jobs.ashbyhq.com/gen-digital
+    method: dynamic
+    endpoint: https://api.ashbyhq.com/posting-api/job-board/gen-digital
+    http_method: GET
+    list_path: ["jobs"]
+    fields:
+      id: id
+      title: title
+      company: null
+      location: location
+      url: jobUrl
+      description: descriptionHtml
+      published_at: publishedAt
+
+  - url: https://bruntworkcareers.co/search
+    method: dynamic
+    endpoint: https://bwcp-api-x7fbd.ondigitalocean.app/api/jobs
+    http_method: GET
+    list_path: []
+    fields:
+      id: _id
+      title: title
+      company: clientName
+      location: type
+      description: description
+      url: null
+      published_at: null

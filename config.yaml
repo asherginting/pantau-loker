@@ -1,0 +1,8 @@
+# Global settings. Safe to commit -- no secrets or user-specific data here.
+# The list of sites to monitor lives in sources.yaml, not here.
+
+threshold: 80 # minimum match score (0-100) that triggers a Telegram notification
+
+validation:
+  max_sources: 50 # max URLs validated per run
+  request_delay_seconds: 1.5 # delay between requests while validating

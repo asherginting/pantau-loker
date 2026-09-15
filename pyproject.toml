@@ -1,0 +1,7 @@
+[project]
+name = "pantau-loker"
+version = "0.1.0"
+description = "Self-hosted 24/7 job board watcher that notifies you on Telegram when a new posting matches your resume."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"

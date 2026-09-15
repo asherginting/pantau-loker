@@ -1,0 +1,43 @@
+name: Validate Sources
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - sources.yaml
+      - sources.manual.yaml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: validate-sources
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browser
+        run: playwright install --with-deps chromium
+
+      - name: Validate sources.yaml
+        run: python src/validate_sources.py
+
+      - name: Commit sources.validated.yaml
+        run: |
+          git config user.name "pantau-loker-bot"
+          git config user.email "actions@github.com"
+          git add sources.validated.yaml
+          git diff --cached --quiet || git commit -m "chore: update sources.validated.yaml"
+          git push

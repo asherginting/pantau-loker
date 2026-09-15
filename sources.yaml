@@ -1,0 +1,21 @@
+# Paste career page / job board URLs here, one per line, any platform.
+# After editing, run the "Validate Sources" workflow (see README) -- only
+# URLs that pass end up in sources.validated.yaml, which is what actually
+# gets monitored.
+#
+# Not sure where to start? Uncomment any of the examples below -- each one
+# has been verified to pass validation as of this writing. Sites change
+# over time, so always re-run validation after editing this file.
+#
+# Global remote job boards:
+#   - https://dynamitejobs.com
+#   - https://justremote.co/remote-jobs
+#   - https://www.toptal.com
+#   - https://www.ycombinator.com/jobs
+#   - https://www.globaljobs.org
+#
+# Indonesia job boards:
+#   - https://www.kalibrr.com/job-board/te/all-jobs
+#   - https://glints.com/id/opportunities/jobs/explore
+
+urls: []

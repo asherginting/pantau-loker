@@ -1,0 +1,28 @@
+sources:
+- url: https://jobs.ashbyhq.com/gen-digital
+  method: dynamic
+  endpoint: https://api.ashbyhq.com/posting-api/job-board/gen-digital
+  http_method: GET
+  list_path:
+  - jobs
+  fields:
+    id: id
+    title: title
+    company: null
+    location: location
+    url: jobUrl
+    description: descriptionHtml
+    published_at: publishedAt
+- url: https://bruntworkcareers.co/search
+  method: dynamic
+  endpoint: https://bwcp-api-x7fbd.ondigitalocean.app/api/jobs
+  http_method: GET
+  list_path: []
+  fields:
+    id: _id
+    title: title
+    company: clientName
+    location: type
+    description: description
+    url: null
+    published_at: null
