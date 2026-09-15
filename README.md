@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 [![Runs on GitHub Actions](https://img.shields.io/badge/runs%20on-GitHub%20Actions-2088FF.svg)](https://github.com/features/actions)
+[![Status: Experimental](https://img.shields.io/badge/status-experimental-orange.svg)](#project-status)
 
 A self-hosted assistant that watches the job boards and career pages you
 choose, 24/7, and pings you on Telegram the moment a new posting matches your
@@ -11,6 +12,42 @@ day.
 
 You decide which sites to watch, you decide what counts as a match, and you
 decide whether to apply. pantau-loker only removes the busywork in between.
+
+## Project status
+
+Early and actively evolving — expect rough edges. To be clear about what
+this is and isn't:
+
+- It does **not** apply to jobs for you. It only notifies you; the decision
+  and the click are always yours.
+- It does **not** monitor "every job site." Only sites that expose public,
+  machine-readable data can be detected safely (see [How source validation
+  decides what's safe](#how-source-validation-decides-whats-safe)) — many
+  well-known job boards don't qualify, and that list is unlikely to ever be
+  "every site."
+- Configuration, defaults, and even the AI provider have already changed
+  once during early use (see [CHANGELOG.md](CHANGELOG.md)) as real-world
+  limits were discovered. More of that is likely as this keeps developing.
+
+Feedback and issues are genuinely useful at this stage — see
+[Contributing](#contributing).
+
+## Table of contents
+
+- [Why](#why)
+- [How it works](#how-it-works)
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Configuration reference](#configuration-reference)
+- [How source validation decides what's safe](#how-source-validation-decides-whats-safe)
+- [Advanced: manual source overrides](#advanced-manual-source-overrides)
+- [Project layout](#project-layout)
+- [Running locally](#running-locally)
+- [Troubleshooting](#troubleshooting)
+- [Security notes](#security-notes)
+- [Contributing](#contributing)
+- [Disclaimer](#disclaimer)
+- [License](#license)
 
 ## Why
 
@@ -240,6 +277,47 @@ cp .env.example .env          # fill in your own credentials
 python src/validate_sources.py
 python src/main.py
 ```
+
+## Troubleshooting
+
+**A URL passes `curl`/a browser fine but Validate Sources skips it.**
+The four detection strategies only accept public, machine-readable data
+(`JobPosting` schema, RSS, embedded JSON, or a live API call the page's own
+frontend makes) — a site that renders listings as plain HTML with nothing
+else is correctly unsupported, not a bug. See [How source validation decides
+what's safe](#how-source-validation-decides-whats-safe). If you believe the
+site actually exposes something detectable, open a **Source can't be
+detected** issue with what you found.
+
+**Zero notifications, even though jobs are being fetched.**
+Check the run's log for the score line per job (`- <title> @ <company>:
+NN%`). Low scores across the board usually just mean those particular
+postings genuinely don't match your resume — not a bug. If scores never
+appear at all, check the AI provider step for errors instead.
+
+**`429 Too Many Requests` / `RESOURCE_EXHAUSTED` from your AI provider.**
+Expected under load, not a crash — pantau-loker retries automatically. If it
+happens constantly, your `matching.requests_per_minute` or `max_per_day` in
+`config.yaml` is set higher than your actual plan allows; check your
+provider's dashboard for the real numbers and lower these to match.
+
+**A model name suddenly stops working (`model not found` / `deprecated`).**
+AI providers rename and retire models over time. Set `GROQ_MODEL` (as a
+secret or in `.env`) to a model currently listed in your provider's console
+rather than waiting for a code update.
+
+**The scheduled `Monitor Jobs` workflow just stopped running.**
+GitHub disables scheduled workflows on repos with no commits for 60 days.
+The workflow commits `data/state.json` on every run specifically to prevent
+this, but if the repo has been otherwise idle for a long time, re-enable the
+workflow manually from the Actions tab.
+
+**I pushed a change and now `git pull` complains about a conflict in
+`sources.validated.yaml` or `data/state.json`.**
+Both files are rewritten by the scheduled workflows. It's safe to discard
+your local copy and take the remote one: `git checkout --theirs
+sources.validated.yaml data/state.json` (or `git checkout -- <file>` after a
+plain `git pull` failure), then continue.
 
 ## Security notes
 
