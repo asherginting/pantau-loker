@@ -83,7 +83,9 @@ def _job_from_jsonld(item: dict, page_url: str) -> Job:
 
 
 def _fetch_rss(entry: dict) -> list[Job]:
-    feed = feedparser.parse(entry["endpoint"])
+    response = polite_get(entry["endpoint"])
+    response.raise_for_status()
+    feed = feedparser.parse(response.content)
     jobs = []
     for item in feed.entries:
         guid = item.get("id") or item.get("link", "")

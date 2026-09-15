@@ -143,11 +143,18 @@ for every match above your threshold.
 **`config.yaml`**
 
 ```yaml
-threshold: 80               # minimum match score (0-100) that triggers a notification
+threshold: 80                  # minimum match score (0-100) that triggers a notification
+matching:
+  requests_per_minute: 5       # stay under your Gemini plan's rate limit (free tier: 5/min)
+  max_per_run: 40              # cap on jobs scored per run; the rest are picked up in later runs
 validation:
-  max_sources: 50            # cap on URLs checked per validation run
-  request_delay_seconds: 1.5 # delay between requests while validating
+  max_sources: 50               # hard cap on total entries allowed in sources.yaml
+  request_delay_seconds: 1.5    # delay between requests while validating
 ```
+
+If you have a lot of sources or a large initial backlog, jobs beyond `max_per_run`
+are simply scored in the next run (10 minutes later) rather than all at once —
+nothing is skipped or lost, it just takes a few runs to catch up the first time.
 
 **`sources.yaml`** — a flat list under `urls:`. No other structure required.
 
@@ -240,13 +247,29 @@ python src/main.py
 - `robots.txt` is checked before any new source is accepted, including a
   live API call discovered via the headless-browser step — if the site asks
   bots to stay off that path, it's skipped even if the call works.
-- Validation runs are capped (`config.yaml → validation.max_sources`) so the
-  tool can't be turned into a way to hammer a long list of servers at once.
+- `sources.yaml` itself is capped at `config.yaml → validation.max_sources`
+  entries — including when adding URLs through the "New URLs to add" workflow
+  input, which silently drops anything past the limit rather than growing the
+  file without bound. This keeps a careless or malicious mass-paste (hundreds
+  or thousands of URLs at once) from turning the tool into a way to hammer a
+  long list of servers, and keeps validation runs bounded in time.
 - The scheduled workflow commits `data/state.json` on every run purely to
   keep the repository active — GitHub disables scheduled workflows on repos
   with no commits for 60 days.
 - This repository never stores anyone's personal data. Resumes, tokens, and
   API keys live only in each fork's own GitHub Secrets.
+- Every network call that fetches external content (RSS included) goes
+  through a request with a bounded timeout — nothing can hang a run
+  indefinitely waiting on a slow or unresponsive server.
+- Every workflow job has a `timeout-minutes` ceiling as a last-resort safety
+  net, so an unexpected hang gets killed automatically instead of running
+  for hours.
+- New URLs (whether added by editing `sources.yaml` or through the "New
+  URLs to add" workflow input) are checked against a strict `http(s)://`
+  pattern before being written to the file, so a malformed or crafted entry
+  can't corrupt the file's structure.
+- The Telegram bot token is never included in error messages or logs, even
+  when a request to Telegram fails.
 
 ## Contributing
 

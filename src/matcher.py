@@ -1,11 +1,14 @@
 import json
 import os
+import re
+import time
 
 from google import genai
 
 from job import Job
 
 _client_instance: genai.Client | None = None
+RATE_LIMIT_RETRY_DELAY_SECONDS = 30
 
 
 def _client() -> genai.Client:
@@ -26,6 +29,21 @@ def _parse_json_response(text: str) -> dict:
             first_line, rest = text.split("\n", 1)
             text = rest if first_line.lower().startswith("json") else text
     return json.loads(text)
+
+
+def _extract_retry_delay(exc: Exception) -> float | None:
+    match = re.search(r"retryDelay['\"]?:\s*['\"]?(\d+)", str(exc))
+    return float(match.group(1)) if match else None
+
+
+def _generate_with_retry(client: genai.Client, model_name: str, prompt: str):
+    try:
+        return client.models.generate_content(model=model_name, contents=prompt)
+    except Exception as exc:
+        if "429" not in str(exc) and "RESOURCE_EXHAUSTED" not in str(exc):
+            raise
+        time.sleep(_extract_retry_delay(exc) or RATE_LIMIT_RETRY_DELAY_SECONDS)
+        return client.models.generate_content(model=model_name, contents=prompt)
 
 
 def score_match(cv_text: str, job: Job) -> dict:
@@ -49,7 +67,7 @@ Location: {job.location}
 Description: {job.description[:4000]}
 """
 
-    response = client.models.generate_content(model=model_name, contents=prompt)
+    response = _generate_with_retry(client, model_name, prompt)
     try:
         result = _parse_json_response(response.text)
         return {"score": int(result.get("score", 0)), "reason": result.get("reason", "")}

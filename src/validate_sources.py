@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -44,6 +45,32 @@ def load_limits() -> tuple[int, float]:
     )
 
 
+def write_step_summary(results: list[dict], manual_count: int) -> None:
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
+
+    passed = [r for r in results if r["status"] == "ok"]
+    skipped = [r for r in results if r["status"] != "ok"]
+
+    lines = [
+        "## Validate Sources summary",
+        "",
+        f"**{len(passed)} of {len(results)}** URL(s) passed"
+        + (f", plus **{manual_count}** manual override(s)" if manual_count else "")
+        + ".",
+        "",
+        "| Status | URL | Detail |",
+        "|---|---|---|",
+    ]
+    for r in passed:
+        lines.append(f"| ✅ OK | {r['url']} | {r['detail']} |")
+    for r in skipped:
+        lines.append(f"| ❌ SKIP | {r['url']} | {r['detail']} |")
+
+    Path(summary_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> None:
     urls = load_urls()
     manual_entries = load_manual_entries()
@@ -65,20 +92,21 @@ def main() -> None:
 
     logger.info("Validating %d URL(s)...\n", len(urls))
     ok_entries = []
+    results = []
     for index, url in enumerate(urls, start=1):
         result = validate_source(url)
         if result["status"] == "ok":
             entry = result["entry"]
+            detail = f"{entry['method']} — {result['sample_count']} job(s) found right now"
             logger.info("[%d/%d] OK   %s", index, len(urls), url)
-            logger.info(
-                "           -> method: %s, %d job(s) found right now",
-                entry["method"],
-                result["sample_count"],
-            )
+            logger.info("           -> method: %s, %d job(s) found right now", entry["method"], result["sample_count"])
             ok_entries.append(entry)
         else:
+            detail = result["reason"]
             logger.info("[%d/%d] SKIP %s", index, len(urls), url)
-            logger.info("           -> %s", result["reason"])
+            logger.info("           -> %s", detail)
+
+        results.append({"url": url, "status": result["status"], "detail": detail})
 
         if index < len(urls):
             time.sleep(delay)
@@ -104,6 +132,8 @@ def main() -> None:
             "Skipped URLs will NOT be monitored until you fix or remove them in "
             "sources.yaml and re-run this validation."
         )
+
+    write_step_summary(results, len(manual_entries))
 
 
 if __name__ == "__main__":

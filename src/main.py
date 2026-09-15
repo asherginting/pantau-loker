@@ -1,5 +1,6 @@
 import html
 import logging
+import time
 from pathlib import Path
 
 import yaml
@@ -60,6 +61,10 @@ def main() -> None:
     load_dotenv()
     config = load_config()
     threshold = config.get("threshold", 80)
+    matching = config.get("matching", {}) or {}
+    requests_per_minute = matching.get("requests_per_minute", 5)
+    max_per_run = matching.get("max_per_run", 40)
+    min_interval = 60 / requests_per_minute if requests_per_minute > 0 else 0
 
     sources = load_validated_sources()
     if not sources:
@@ -78,8 +83,19 @@ def main() -> None:
     new_jobs = [job for job in all_jobs if job.id not in seen]
     logger.info("Total jobs: %d, new: %d", len(all_jobs), len(new_jobs))
 
+    if len(new_jobs) > max_per_run:
+        logger.info(
+            "Limiting to %d job(s) this run to respect the AI rate limit; "
+            "the rest will be picked up in later runs.",
+            max_per_run,
+        )
+        new_jobs = new_jobs[:max_per_run]
+
     notified = 0
-    for job in new_jobs:
+    for index, job in enumerate(new_jobs):
+        if index > 0 and min_interval > 0:
+            time.sleep(min_interval)
+
         try:
             result = score_match(cv_text, job)
         except Exception as exc:
