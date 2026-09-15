@@ -2,6 +2,43 @@ sources:
 - url: https://www.globaljobs.org
   method: rss
   endpoint: https://www.globaljobs.org/jobs/feed
+- url: https://dynamitejobs.com
+  method: rss
+  endpoint: https://dynamitejobs.com/feed/rss.xml
+- url: https://justremote.co/remote-jobs
+  method: embedded
+  endpoint: https://justremote.co/remote-jobs
+  list_path:
+  - homeJobsState
+  - entity
+  - jobs
+  fields:
+    id: id
+    title: title
+    company: company_name
+    location: null
+    url: null
+    description: null
+    published_at: date
+- url: https://www.toptal.com
+  method: embedded
+  endpoint: https://www.toptal.com
+  list_path:
+  - items
+  fields:
+    id: null
+    title: title
+    company: null
+    location: null
+    url: null
+    description: description
+    published_at: null
+- url: https://www.ycombinator.com/jobs
+  method: rss
+  endpoint: https://www.ycombinator.com/blog/feed
+- url: https://globalcharityjobs.com
+  method: rss
+  endpoint: https://globalcharityjobs.com/feed/
 - url: https://jobs.ashbyhq.com/gen-digital
   method: dynamic
   endpoint: https://api.ashbyhq.com/posting-api/job-board/gen-digital
