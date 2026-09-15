@@ -1,4 +1,7 @@
 sources:
+- url: https://www.globaljobs.org
+  method: rss
+  endpoint: https://www.globaljobs.org/jobs/feed
 - url: https://jobs.ashbyhq.com/gen-digital
   method: dynamic
   endpoint: https://api.ashbyhq.com/posting-api/job-board/gen-digital
