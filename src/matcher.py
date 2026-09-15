@@ -9,6 +9,8 @@ from job import Job
 
 _client_instance: Groq | None = None
 RATE_LIMIT_RETRY_DELAY_SECONDS = 30
+CV_CHAR_LIMIT = 3000
+DESCRIPTION_CHAR_LIMIT = 1500
 
 
 def _client() -> Groq:
@@ -36,16 +38,17 @@ def _extract_retry_delay(exc: Exception) -> float | None:
     return float(match.group(1)) if match else None
 
 
-def _complete(client: Groq, model_name: str, prompt: str) -> str:
+def _complete(client: Groq, model_name: str, prompt: str) -> tuple[str, int]:
     response = client.chat.completions.create(
         model=model_name,
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
     )
-    return response.choices[0].message.content
+    tokens_used = response.usage.total_tokens if response.usage else 0
+    return response.choices[0].message.content, tokens_used
 
 
-def _generate_with_retry(client: Groq, model_name: str, prompt: str) -> str:
+def _generate_with_retry(client: Groq, model_name: str, prompt: str) -> tuple[str, int]:
     try:
         return _complete(client, model_name, prompt)
     except Exception as exc:
@@ -67,18 +70,26 @@ Reply with ONLY this JSON, no other text, no markdown:
 {{"score": <integer 0-100>, "reason": "<one or two sentence explanation>"}}
 
 === RESUME ===
-{cv_text}
+{cv_text[:CV_CHAR_LIMIT]}
 
 === JOB POSTING ===
 Title: {job.title}
 Company: {job.company}
 Location: {job.location}
-Description: {job.description[:4000]}
+Description: {job.description[:DESCRIPTION_CHAR_LIMIT]}
 """
 
-    text = _generate_with_retry(client, model_name, prompt)
+    text, tokens_used = _generate_with_retry(client, model_name, prompt)
     try:
         result = _parse_json_response(text)
-        return {"score": int(result.get("score", 0)), "reason": result.get("reason", "")}
+        return {
+            "score": int(result.get("score", 0)),
+            "reason": result.get("reason", ""),
+            "tokens_used": tokens_used,
+        }
     except (json.JSONDecodeError, ValueError, AttributeError):
-        return {"score": 0, "reason": f"Failed to parse AI response: {text[:200]}"}
+        return {
+            "score": 0,
+            "reason": f"Failed to parse AI response: {text[:200]}",
+            "tokens_used": tokens_used,
+        }

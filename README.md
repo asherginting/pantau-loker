@@ -184,17 +184,26 @@ threshold: 80                  # minimum match score (0-100) that triggers a not
 matching:
   requests_per_minute: 20      # stay under your Groq plan's rate limit (see console.groq.com/settings/limits)
   max_per_run: 40              # cap on jobs scored per run; the rest are picked up in later runs
-  max_per_day: 200             # hard daily cap on AI matches, to stay within your plan's daily quota
+  max_per_day: 200             # hard daily cap on the *number* of AI matches
+  max_tokens_per_day: 180000   # hard daily cap on *tokens* used — usually the real bottleneck, see note below
 validation:
   max_sources: 50              # hard cap on total entries allowed in sources.yaml
   request_delay_seconds: 1.5   # delay between requests while validating
 ```
 
-If you have a lot of sources or a large initial backlog, jobs beyond `max_per_run`
-or `max_per_day` are simply scored in a later run rather than all at once —
+If you have a lot of sources or a large initial backlog, jobs beyond any of
+these caps are simply scored in a later run rather than all at once —
 nothing is skipped or lost, it just takes a while to catch up the first time.
 Lower these if you're on a more limited plan, or raise them if you have more
 headroom.
+
+**A request-count cap alone is not enough.** Most providers, including
+Groq's free tier, also cap *tokens per day* independently of *requests per
+day* — and for some models the token cap is the one you'll actually hit
+first, since each match sends your resume and the job description as input.
+`max_tokens_per_day` tracks real token usage (from the API's own response)
+and stops before your provider starts rejecting requests outright, rather
+than discovering the limit through a wall of `429` errors.
 
 **`sources.yaml`** — a flat list under `urls:`. No other structure required.
 
@@ -296,10 +305,13 @@ postings genuinely don't match your resume — not a bug. If scores never
 appear at all, check the AI provider step for errors instead.
 
 **`429 Too Many Requests` / `RESOURCE_EXHAUSTED` from your AI provider.**
-Expected under load, not a crash — pantau-loker retries automatically. If it
-happens constantly, your `matching.requests_per_minute` or `max_per_day` in
-`config.yaml` is set higher than your actual plan allows; check your
-provider's dashboard for the real numbers and lower these to match.
+An occasional one is expected under load and gets retried automatically. A
+long run of them near the end of a run usually means you've hit a **tokens
+per day** limit, not a requests-per-day one — the error message will say
+`tokens per day (TPD)` explicitly. Lower `matching.max_tokens_per_day` in
+`config.yaml` to match what your provider's dashboard actually shows for
+your model (check console.groq.com/settings/limits), not just the
+request-count limits.
 
 **A model name suddenly stops working (`model not found` / `deprecated`).**
 AI providers rename and retire models over time. Set `GROQ_MODEL` (as a

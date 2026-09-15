@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 from cv_loader import load_cv
@@ -36,16 +35,6 @@ def load_validated_sources() -> list[dict]:
     return data.get("sources", []) or []
 
 
-def clean_description(text: str, limit: int = 300) -> str:
-    if not text:
-        return ""
-    plain = BeautifulSoup(text, "html.parser").get_text(separator=" ", strip=True)
-    plain = " ".join(plain.split())
-    if len(plain) > limit:
-        plain = plain[:limit].rstrip() + "..."
-    return plain
-
-
 def build_message(job: Job, score: int, reason: str) -> str:
     title = html.escape(job.title)
     if job.company:
@@ -53,14 +42,12 @@ def build_message(job: Job, score: int, reason: str) -> str:
     if job.location:
         title += f" ({html.escape(job.location)})"
 
-    lines = [f"🎯 <b>Match {score}%</b>", f"📌 <b>Title:</b> {title}"]
-
-    description = clean_description(job.description)
-    if description:
-        lines.append(f"📝 <b>Description:</b> {html.escape(description)}")
-
-    lines.append(f"💡 <b>Reason:</b> {html.escape(reason)}")
-    lines.append(f"🔗 <b>Link Apply:</b> {job.url}")
+    lines = [
+        f"🎯 <b>Match {score}%</b>",
+        f"📌 <b>Title:</b> {title}",
+        f"💡 <b>Reason:</b> {html.escape(reason)}",
+        f"🔗 <b>Link Apply:</b> {job.url}",
+    ]
     return "\n".join(lines)
 
 
@@ -105,6 +92,7 @@ def main() -> None:
     requests_per_minute = matching.get("requests_per_minute", 5)
     max_per_run = matching.get("max_per_run", 40)
     max_per_day = matching.get("max_per_day")
+    max_tokens_per_day = matching.get("max_tokens_per_day")
     min_interval = 60 / requests_per_minute if requests_per_minute > 0 else 0
 
     sources = load_validated_sources()
@@ -124,7 +112,9 @@ def main() -> None:
     if state.get("matcher_date") != today:
         state["matcher_date"] = today
         state["matcher_count"] = 0
+        state["tokens_used_today"] = 0
     matcher_count = state.get("matcher_count", 0)
+    tokens_used_today = state.get("tokens_used_today", 0)
 
     per_source_jobs = fetch_all_jobs(sources)
     all_jobs = [job for jobs in per_source_jobs for job in jobs]
@@ -169,6 +159,14 @@ def main() -> None:
 
     notified = 0
     for index, job in enumerate(new_jobs):
+        if max_tokens_per_day is not None and tokens_used_today >= max_tokens_per_day:
+            logger.info(
+                "Daily AI token budget (%d) reached; stopping for today to avoid "
+                "hitting your provider's hard limit.",
+                max_tokens_per_day,
+            )
+            break
+
         if index > 0 and min_interval > 0:
             time.sleep(min_interval)
 
@@ -179,6 +177,7 @@ def main() -> None:
             continue
 
         matcher_count += 1
+        tokens_used_today += result.get("tokens_used", 0)
         seen.add(job.id)
         score = result["score"]
         logger.info("  - %s @ %s: %d%%", job.title, job.company, score)
@@ -192,9 +191,15 @@ def main() -> None:
 
     state["seen_ids"] = list(seen)
     state["matcher_count"] = matcher_count
+    state["tokens_used_today"] = tokens_used_today
     save_state(state)
 
-    budget_note = f" ({matcher_count}/{max_per_day} AI matches used today)" if max_per_day else ""
+    budget_parts = []
+    if max_per_day:
+        budget_parts.append(f"{matcher_count}/{max_per_day} AI matches")
+    if max_tokens_per_day:
+        budget_parts.append(f"{tokens_used_today}/{max_tokens_per_day} tokens")
+    budget_note = f" ({', '.join(budget_parts)} used today)" if budget_parts else ""
     logger.info("Done. %d notification(s) sent.%s", notified, budget_note)
 
 
