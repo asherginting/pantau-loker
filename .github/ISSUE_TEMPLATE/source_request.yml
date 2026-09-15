@@ -1,0 +1,39 @@
+name: Source can't be detected
+description: A job board / career page should be detectable but isn't
+labels: ["source-detection"]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: URL
+      description: The career page or job board URL you tried to add.
+    validations:
+      required: true
+
+  - type: textarea
+    id: skip-reason
+    attributes:
+      label: What did Validate Sources say?
+      description: Paste the "SKIP ... -> reason" line from the validation log.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: What did you find?
+      description: >
+        If you dug into the page (e.g., found a `JobPosting` schema.org
+        block, a JSON blob in a `<script>` tag, or a network call the page
+        makes), describe or paste it here. This is the single most useful
+        thing you can include.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: >
+            I'm not asking for HTML scraping or guessing an undocumented
+            endpoint — see CONTRIBUTING.md for why those aren't accepted.
+          required: true

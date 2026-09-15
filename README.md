@@ -276,7 +276,13 @@ python src/main.py
 
 ## Contributing
 
-Issues and PRs are welcome.
+Issues and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how
+to report bugs, suggest a source that should be detectable, and the code
+style this project follows. Participation is governed by the [Code of
+Conduct](CODE_OF_CONDUCT.md).
+
+Found a security issue? See [SECURITY.md](SECURITY.md) instead of opening a
+public issue.
 
 ## Disclaimer
 

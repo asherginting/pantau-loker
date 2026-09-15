@@ -1,0 +1,47 @@
+name: Bug report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what actually happened instead?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Which workflow?
+      options:
+        - Validate Sources
+        - Monitor Jobs
+        - Test Setup
+        - Running locally
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: >
+        Paste the relevant part of the Actions run log or terminal output.
+        Do NOT paste real tokens, API keys, or your resume content — redact
+        them first.
+      render: shell
+
+  - type: input
+    id: source-url
+    attributes:
+      label: Source URL (if relevant)
+      description: The job board / career page URL this happened with, if applicable.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I removed any real secrets from the logs above before posting
+          required: true
