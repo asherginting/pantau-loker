@@ -1,6 +1,7 @@
 import html
 import logging
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -44,6 +45,10 @@ def build_message(job: Job, score: int, reason: str) -> str:
     )
 
 
+def today_utc() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
 def fetch_all_jobs(sources: list[dict]) -> list[Job]:
     jobs = []
     for entry in sources:
@@ -64,6 +69,7 @@ def main() -> None:
     matching = config.get("matching", {}) or {}
     requests_per_minute = matching.get("requests_per_minute", 5)
     max_per_run = matching.get("max_per_run", 40)
+    max_per_day = matching.get("max_per_day")
     min_interval = 60 / requests_per_minute if requests_per_minute > 0 else 0
 
     sources = load_validated_sources()
@@ -79,17 +85,34 @@ def main() -> None:
     seen = set(state.get("seen_ids", []))
     cv_text = load_cv()
 
+    today = today_utc()
+    if state.get("matcher_date") != today:
+        state["matcher_date"] = today
+        state["matcher_count"] = 0
+    matcher_count = state.get("matcher_count", 0)
+
     all_jobs = fetch_all_jobs(sources)
     new_jobs = [job for job in all_jobs if job.id not in seen]
     logger.info("Total jobs: %d, new: %d", len(all_jobs), len(new_jobs))
 
-    if len(new_jobs) > max_per_run:
+    budget = max_per_run
+    if max_per_day is not None:
+        remaining_today = max(max_per_day - matcher_count, 0)
+        if remaining_today <= 0:
+            logger.info(
+                "Daily AI matching budget (%d) already used today (UTC). "
+                "Skipping matching until it resets tomorrow.",
+                max_per_day,
+            )
+        budget = min(budget, remaining_today)
+
+    if len(new_jobs) > budget:
         logger.info(
-            "Limiting to %d job(s) this run to respect the AI rate limit; "
+            "Limiting to %d job(s) this run (rate/daily budget); "
             "the rest will be picked up in later runs.",
-            max_per_run,
+            budget,
         )
-        new_jobs = new_jobs[:max_per_run]
+    new_jobs = new_jobs[:budget]
 
     notified = 0
     for index, job in enumerate(new_jobs):
@@ -102,6 +125,7 @@ def main() -> None:
             logger.error("[matcher] error for %s: %s", job.id, exc)
             continue
 
+        matcher_count += 1
         seen.add(job.id)
         score = result["score"]
         logger.info("  - %s @ %s: %d%%", job.title, job.company, score)
@@ -114,8 +138,11 @@ def main() -> None:
                 logger.error("[notifier] error for %s: %s", job.id, exc)
 
     state["seen_ids"] = list(seen)
+    state["matcher_count"] = matcher_count
     save_state(state)
-    logger.info("Done. %d notification(s) sent.", notified)
+
+    budget_note = f" ({matcher_count}/{max_per_day} AI matches used today)" if max_per_day else ""
+    logger.info("Done. %d notification(s) sent.%s", notified, budget_note)
 
 
 if __name__ == "__main__":

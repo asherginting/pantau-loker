@@ -4,8 +4,9 @@
 threshold: 80 # minimum match score (0-100) that triggers a Telegram notification
 
 matching:
-  requests_per_minute: 5 # stay under your Gemini plan's rate limit (free tier: 5/min)
+  requests_per_minute: 20 # most Groq free-tier chat models allow 30/min; this leaves headroom
   max_per_run: 40 # cap on jobs scored per run; the rest are picked up in later runs
+  max_per_day: 200 # most Groq free-tier chat models allow 1,000/day; this leaves plenty of headroom
 
 validation:
   max_sources: 50 # max URLs validated per run

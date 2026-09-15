@@ -36,7 +36,7 @@ flowchart LR
     B -->|none found, or robots.txt disallows it| D[skipped, never polled]
     C -->|main.py, every 10 min| E[Fetch current postings]
     E --> F[Diff against data/state.json]
-    F -->|new posting| G[Score vs your resume with Gemini]
+    F -->|new posting| G[Score vs your resume with Groq]
     G -->|score >= threshold| H[Telegram notification]
     G -->|score < threshold| I[logged, no notification]
 ```
@@ -76,7 +76,7 @@ at arbitrary endpoints without a check in between.
 | What | Where to get it |
 |---|---|
 | A Telegram bot token + chat ID | Message [@BotFather](https://t.me/BotFather), run `/newbot`, then message your new bot once and open `https://api.telegram.org/bot<TOKEN>/getUpdates` to read your chat ID |
-| A Gemini API key (free tier) | [Google AI Studio](https://aistudio.google.com/app/apikey) |
+| A Groq API key (free tier) | [console.groq.com/keys](https://console.groq.com/keys) |
 | Your resume | A link to a hosted PDF/DOCX, or the file itself |
 
 ### 3. Add your resume
@@ -105,11 +105,11 @@ secret**.
 | `CV_URL` | Link to your resume file (skip if you uploaded to `cv/` instead) |
 | `TELEGRAM_BOT_TOKEN` | From BotFather |
 | `TELEGRAM_CHAT_ID` | Your chat ID |
-| `GEMINI_API_KEY` | From Google AI Studio |
+| `GROQ_API_KEY` | From console.groq.com |
 
 ### 5. Test your setup
 
-**Actions → Test Setup → Run workflow.** This checks your resume, Gemini key,
+**Actions → Test Setup → Run workflow.** This checks your resume, Groq key,
 and Telegram bot in one go, and sends a test message to your chat if
 everything's working. Fix anything it flags before moving on.
 
@@ -145,16 +145,19 @@ for every match above your threshold.
 ```yaml
 threshold: 80                  # minimum match score (0-100) that triggers a notification
 matching:
-  requests_per_minute: 5       # stay under your Gemini plan's rate limit (free tier: 5/min)
+  requests_per_minute: 20      # stay under your Groq plan's rate limit (see console.groq.com/settings/limits)
   max_per_run: 40              # cap on jobs scored per run; the rest are picked up in later runs
+  max_per_day: 200             # hard daily cap on AI matches, to stay within your plan's daily quota
 validation:
-  max_sources: 50               # hard cap on total entries allowed in sources.yaml
-  request_delay_seconds: 1.5    # delay between requests while validating
+  max_sources: 50              # hard cap on total entries allowed in sources.yaml
+  request_delay_seconds: 1.5   # delay between requests while validating
 ```
 
 If you have a lot of sources or a large initial backlog, jobs beyond `max_per_run`
-are simply scored in the next run (10 minutes later) rather than all at once —
-nothing is skipped or lost, it just takes a few runs to catch up the first time.
+or `max_per_day` are simply scored in a later run rather than all at once —
+nothing is skipped or lost, it just takes a while to catch up the first time.
+Lower these if you're on a more limited plan, or raise them if you have more
+headroom.
 
 **`sources.yaml`** — a flat list under `urls:`. No other structure required.
 
@@ -217,7 +220,7 @@ src/
   detector.py             the four-strategy source validation logic
   fetcher.py              fetches and normalizes postings from a validated source
   cv_loader.py            reads a resume from a URL or an uploaded PDF/DOCX file
-  matcher.py              scores a posting against the resume via Gemini
+  matcher.py              scores a posting against the resume via Groq
   notifier.py             sends the Telegram message
   state.py                reads and writes data/state.json
   add_sources.py          appends URLs to sources.yaml from the workflow's input box

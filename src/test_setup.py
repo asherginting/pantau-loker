@@ -22,9 +22,9 @@ def check_resume() -> bool:
     return True
 
 
-def check_gemini() -> bool:
-    if not os.environ.get("GEMINI_API_KEY"):
-        logger.error("Gemini API: FAILED (GEMINI_API_KEY is not set)")
+def check_groq() -> bool:
+    if not os.environ.get("GROQ_API_KEY"):
+        logger.error("Groq API: FAILED (GROQ_API_KEY is not set)")
         return False
 
     sample_job = Job(
@@ -38,9 +38,9 @@ def check_gemini() -> bool:
     try:
         result = score_match("Experienced software engineer skilled in Python.", sample_job)
     except Exception as exc:
-        logger.error("Gemini API: FAILED (%s)", exc)
+        logger.error("Groq API: FAILED (%s)", exc)
         return False
-    logger.info("Gemini API: OK (test match score: %s%%)", result["score"])
+    logger.info("Groq API: OK (test match score: %s%%)", result["score"])
     return True
 
 
@@ -64,7 +64,7 @@ def main() -> None:
 
     results = {
         "Resume": check_resume(),
-        "Gemini API": check_gemini(),
+        "Groq API": check_groq(),
         "Telegram": check_telegram(),
     }
 
