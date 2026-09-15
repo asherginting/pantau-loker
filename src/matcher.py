@@ -62,12 +62,21 @@ def score_match(cv_text: str, job: Job) -> dict:
     client = _client()
     model_name = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 
-    prompt = f"""You are a recruiting assistant. Compare the candidate's resume with the
-job posting below, then give a match score from 0 to 100 based on how well their
-skills, experience, and role fit align.
+    prompt = f"""You are a recruiting assistant helping a job seeker decide which
+postings deserve their attention.
+
+Give:
+1. A match score from 0 to 100 based on how directly their skills and
+   experience align with the role's stated requirements.
+2. Whether this is still worth applying to even if the direct skill overlap
+   isn't very high — for example, because the required skills are closely
+   related to what the candidate already knows, the gap looks learnable on
+   the job, or the core domain overlaps enough to make it a reasonable
+   stretch. Be selective: only mark this true when there's a genuine,
+   specific reason, not for every posting.
 
 Reply with ONLY this JSON, no other text, no markdown:
-{{"score": <integer 0-100>, "reason": "<one or two sentence explanation>"}}
+{{"score": <integer 0-100>, "reason": "<one or two sentence explanation>", "worth_trying": <true or false>}}
 
 === RESUME ===
 {cv_text[:CV_CHAR_LIMIT]}
@@ -85,11 +94,13 @@ Description: {job.description[:DESCRIPTION_CHAR_LIMIT]}
         return {
             "score": int(result.get("score", 0)),
             "reason": result.get("reason", ""),
+            "worth_trying": bool(result.get("worth_trying", False)),
             "tokens_used": tokens_used,
         }
     except (json.JSONDecodeError, ValueError, AttributeError):
         return {
             "score": 0,
             "reason": f"Failed to parse AI response: {text[:200]}",
+            "worth_trying": False,
             "tokens_used": tokens_used,
         }

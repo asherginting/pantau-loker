@@ -74,8 +74,9 @@ flowchart LR
     C -->|main.py, every 10 min| E[Fetch current postings]
     E --> F[Diff against data/state.json]
     F -->|new posting| G[Score vs your resume with Groq]
-    G -->|score >= threshold| H[Telegram notification]
-    G -->|score < threshold| I[logged, no notification]
+    G -->|score >= threshold| H["Telegram: Strong Match"]
+    G -->|AI flags it as worth trying anyway| J["Telegram: Worth Trying"]
+    G -->|neither| I[logged, no notification]
 ```
 
 Nothing is polled until it has passed validation. That two-step design means
@@ -97,6 +98,15 @@ at arbitrary endpoints without a check in between.
   undocumented endpoint is ever guessed at blindly. A page that renders its
   listings as plain HTML with no structured data anywhere is correctly
   reported as unsupported rather than scraped.
+- **Understands adjacent skills, not just keywords.** Matching is done by an
+  LLM, not string matching — a resume listing React.js is recognized as
+  relevant to a Next.js posting, for example, because it reasons about the
+  relationship rather than requiring an exact keyword hit.
+- **Two-tier notifications.** A posting at or above `threshold` is sent as a
+  "Strong Match." One below it can still be sent as "Worth Trying" if the AI
+  finds a specific reason it's a reasonable stretch (closely related skills,
+  a learnable gap) — it's deliberately selective about this, not a second
+  lower threshold applied to everything.
 - **Any resume format.** A hosted PDF/DOCX link, or a PDF/DOCX file you drop
   into the repo yourself — whichever is less friction for you.
 - **Runs for free.** GitHub Actions on a public repo has no minute limit for
@@ -180,7 +190,7 @@ for every match above your threshold.
 **`config.yaml`**
 
 ```yaml
-threshold: 80                  # minimum match score (0-100) that triggers a notification
+threshold: 80                  # minimum match score (0-100) for a "strong match" notification
 matching:
   requests_per_minute: 20      # stay under your Groq plan's rate limit (see console.groq.com/settings/limits)
   max_per_run: 40              # cap on jobs scored per run; the rest are picked up in later runs

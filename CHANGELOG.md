@@ -7,6 +7,10 @@ loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Two-tier notifications: a posting can now be flagged "Worth Trying" below
+  `threshold` if the AI finds a specific reason it's a reasonable stretch
+  (e.g., closely related skills), in addition to the existing "Strong
+  Match" tier at or above `threshold`.
 - `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, issue and pull
   request templates, to complete GitHub's community standards checklist.
 - "Project status" and "Troubleshooting" sections in the README.

@@ -35,15 +35,17 @@ def load_validated_sources() -> list[dict]:
     return data.get("sources", []) or []
 
 
-def build_message(job: Job, score: int, reason: str) -> str:
+def build_message(job: Job, score: int, reason: str, is_strong_match: bool) -> str:
     title = html.escape(job.title)
     if job.company:
         title += f" — {html.escape(job.company)}"
     if job.location:
         title += f" ({html.escape(job.location)})"
 
+    label = f"🎯 <b>Match {score}%</b>" if is_strong_match else f"🌟 <b>Worth Trying ({score}%)</b>"
+
     lines = [
-        f"🎯 <b>Match {score}%</b>",
+        label,
         f"📌 <b>Title:</b> {title}",
         f"💡 <b>Reason:</b> {html.escape(reason)}",
         f"🔗 <b>Link Apply:</b> {job.url}",
@@ -180,11 +182,19 @@ def main() -> None:
         tokens_used_today += result.get("tokens_used", 0)
         seen.add(job.id)
         score = result["score"]
-        logger.info("  - %s @ %s: %d%%", job.title, job.company, score)
+        is_strong_match = score >= threshold
+        worth_trying = result.get("worth_trying", False)
+        logger.info(
+            "  - %s @ %s: %d%%%s",
+            job.title,
+            job.company,
+            score,
+            " (worth trying)" if worth_trying and not is_strong_match else "",
+        )
 
-        if score >= threshold:
+        if is_strong_match or worth_trying:
             try:
-                send_telegram(build_message(job, score, result["reason"]))
+                send_telegram(build_message(job, score, result["reason"], is_strong_match))
                 notified += 1
             except Exception as exc:
                 logger.error("[notifier] error for %s: %s", job.id, exc)
