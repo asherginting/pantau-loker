@@ -49,17 +49,33 @@ def today_utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
-def fetch_all_jobs(sources: list[dict]) -> list[Job]:
-    jobs = []
+def fetch_all_jobs(sources: list[dict]) -> list[list[Job]]:
+    per_source = []
     for entry in sources:
         label = entry.get("url", "?")
         try:
             source_jobs = fetch_from_source(entry)
             logger.info("[%s] %d jobs found", label, len(source_jobs))
-            jobs.extend(source_jobs)
+            per_source.append(source_jobs)
         except Exception as exc:
             logger.error("[%s] error: %s", label, exc)
-    return jobs
+            per_source.append([])
+    return per_source
+
+
+def interleave(job_lists: list[list[Job]]) -> list[Job]:
+    result = []
+    index = 0
+    while True:
+        added_any = False
+        for jobs in job_lists:
+            if index < len(jobs):
+                result.append(jobs[index])
+                added_any = True
+        if not added_any:
+            break
+        index += 1
+    return result
 
 
 def main() -> None:
@@ -91,8 +107,10 @@ def main() -> None:
         state["matcher_count"] = 0
     matcher_count = state.get("matcher_count", 0)
 
-    all_jobs = fetch_all_jobs(sources)
-    new_jobs = [job for job in all_jobs if job.id not in seen]
+    per_source_jobs = fetch_all_jobs(sources)
+    all_jobs = [job for jobs in per_source_jobs for job in jobs]
+    new_per_source = [[job for job in jobs if job.id not in seen] for jobs in per_source_jobs]
+    new_jobs = interleave(new_per_source)
     logger.info("Total jobs: %d, new: %d", len(all_jobs), len(new_jobs))
 
     budget = max_per_run
