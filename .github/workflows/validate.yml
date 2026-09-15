@@ -1,7 +1,12 @@
 name: Validate Sources
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "New URLs to add, separated by commas (optional)"
+        required: false
+        type: string
   push:
     branches: [main]
     paths:
@@ -31,13 +36,19 @@ jobs:
       - name: Install Playwright browser
         run: playwright install --with-deps chromium
 
+      - name: Add URLs from input
+        if: github.event.inputs.urls != ''
+        env:
+          NEW_URLS: ${{ github.event.inputs.urls }}
+        run: python src/add_sources.py "$NEW_URLS"
+
       - name: Validate sources.yaml
         run: python src/validate_sources.py
 
-      - name: Commit sources.validated.yaml
+      - name: Commit changes
         run: |
           git config user.name "pantau-loker-bot"
           git config user.email "actions@github.com"
-          git add sources.validated.yaml
-          git diff --cached --quiet || git commit -m "chore: update sources.validated.yaml"
+          git add sources.yaml sources.validated.yaml
+          git diff --cached --quiet || git commit -m "chore: update sources"
           git push

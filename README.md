@@ -115,18 +115,22 @@ everything's working. Fix anything it flags before moving on.
 
 ### 6. List the sites you want watched
 
-Edit [`sources.yaml`](sources.yaml) and add one URL per line — any career
-page or job board, no need to know what powers it. Not sure where to start?
-The file ships with a few already-verified example sites, commented out —
-just uncomment the ones you want.
+Two ways to add URLs — no need to know what powers any of them:
+
+- **Without editing any file:** **Actions → Validate Sources → Run workflow**,
+  paste one or more URLs into the "New URLs to add" box (comma-separated),
+  and run it. The workflow adds them to `sources.yaml` and validates them in
+  the same run.
+- **By editing the file directly:** open [`sources.yaml`](sources.yaml) and
+  add one URL per line. The file also ships with a few already-verified
+  example sites, commented out — just uncomment the ones you want.
 
 ### 7. Validate
 
-Pushing a change to `sources.yaml` automatically runs validation. You can
-also trigger it manually: **Actions → Validate Sources → Run workflow.**
-Either way, each URL is checked and the ones that pass are written to
-`sources.validated.yaml`, with a log line explaining why anything else was
-skipped.
+Pushing a change to `sources.yaml` automatically runs validation, and using
+the "New URLs to add" box above runs it immediately. Either way, each URL is
+checked and the ones that pass are written to `sources.validated.yaml`, with
+a log line explaining why anything else was skipped.
 
 ### 8. Enable monitoring
 
@@ -209,6 +213,7 @@ src/
   matcher.py              scores a posting against the resume via Gemini
   notifier.py             sends the Telegram message
   state.py                reads and writes data/state.json
+  add_sources.py          appends URLs to sources.yaml from the workflow's input box
   validate_sources.py     entry point for the Validate Sources workflow
   main.py                 entry point for the Monitor Jobs workflow
   test_setup.py           entry point for the Test Setup workflow
