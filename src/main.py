@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 from cv_loader import load_cv
@@ -35,14 +36,32 @@ def load_validated_sources() -> list[dict]:
     return data.get("sources", []) or []
 
 
+def clean_description(text: str, limit: int = 300) -> str:
+    if not text:
+        return ""
+    plain = BeautifulSoup(text, "html.parser").get_text(separator=" ", strip=True)
+    plain = " ".join(plain.split())
+    if len(plain) > limit:
+        plain = plain[:limit].rstrip() + "..."
+    return plain
+
+
 def build_message(job: Job, score: int, reason: str) -> str:
-    return (
-        f"🎯 <b>Match {score}%</b> - {html.escape(job.title)}\n"
-        f"🏢 {html.escape(job.company)}\n"
-        f"📍 {html.escape(job.location)}\n"
-        f"💡 {html.escape(reason)}\n"
-        f"🔗 {job.url}"
-    )
+    title = html.escape(job.title)
+    if job.company:
+        title += f" — {html.escape(job.company)}"
+    if job.location:
+        title += f" ({html.escape(job.location)})"
+
+    lines = [f"🎯 <b>Match {score}%</b>", f"📌 <b>Title:</b> {title}"]
+
+    description = clean_description(job.description)
+    if description:
+        lines.append(f"📝 <b>Description:</b> {html.escape(description)}")
+
+    lines.append(f"💡 <b>Reason:</b> {html.escape(reason)}")
+    lines.append(f"🔗 <b>Link Apply:</b> {job.url}")
+    return "\n".join(lines)
 
 
 def today_utc() -> str:
@@ -109,9 +128,25 @@ def main() -> None:
 
     per_source_jobs = fetch_all_jobs(sources)
     all_jobs = [job for jobs in per_source_jobs for job in jobs]
-    new_per_source = [[job for job in jobs if job.id not in seen] for jobs in per_source_jobs]
+
+    skipped_no_url = 0
+    new_per_source = []
+    for jobs in per_source_jobs:
+        filtered = []
+        for job in jobs:
+            if job.id in seen:
+                continue
+            if not job.url:
+                seen.add(job.id)
+                skipped_no_url += 1
+                continue
+            filtered.append(job)
+        new_per_source.append(filtered)
+
     new_jobs = interleave(new_per_source)
     logger.info("Total jobs: %d, new: %d", len(all_jobs), len(new_jobs))
+    if skipped_no_url:
+        logger.info("Skipped %d job(s) with no application link (not actionable).", skipped_no_url)
 
     budget = max_per_run
     if max_per_day is not None:
